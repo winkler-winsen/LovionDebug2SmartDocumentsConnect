@@ -1,19 +1,31 @@
-﻿#
-# Autor: Lars Winkler <l.winkler@lkharburg.de>
-# Datum: 07.03.2023
-#
-# Konvertiert Lovion Editor Debug Ausgaben (Strg+Umsch.+Alt+F11) in einer Textdatei $infile zu Einträgen für Lovion Smart Documents Export Config XML Dateien
-#
+﻿<#
+    .SYNOPSIS
+    Konvertiert Lovion EXPLORE Debug Ausgaben (Strg+Umsch.+Alt+F11) in einer Textdatei $infile zu Einträgen für Lovion SmartDocumentsConnect ExportConfigs-XML-Dateien
 
-$infile = 'EE.txt'
+    .NOTES
+    Author:     Lars Winkler 
+    Date:       08.03.2023
+    Version:    1.1
+
+    .LINK
+    None.
+
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    None.
+#>
+
+$infile = 'EE.txt'  # Input Datei mit der Lovion EXPLORE Debug Ausgabe (Strg+Umsch.+Alt+F11) 
 
 $content = Get-Content $infile -Encoding UTF8
 $table = @{}
 $position=0
 $output=@()
 
-$RwoTypeNameExt = $content[1].Substring( $content[1].LastIndexOf('(')+1, ($content[1].LastIndexOf(')') - $content[1].LastIndexOf('('))-1 ).Trim().Replace('?','').Replace('%','').Replace('[','').Replace(']','').Replace('²','2').Replace('³','2').Replace(':','')
-$RwoTypeNameInt = $content[1].Substring( $content[1].IndexOf('"')+1, ($content[1].LastIndexOf('"') - $content[1].IndexOf('"'))-1 ).Trim().Replace('?','').Replace('%','').Replace('[','').Replace(']','').Replace('²','2').Replace('³','2').Replace(':','')
+$RwoTypeNameInt = $content[1].Substring( $content[1].LastIndexOf('(')+1, ($content[1].LastIndexOf(')') - $content[1].LastIndexOf('('))-1 ).Trim().Replace('?','').Replace('%','').Replace('[','').Replace(']','').Replace('²','2').Replace('³','2').Replace(':','')
+$RwoTypeNameExt = $content[1].Substring( $content[1].IndexOf('"')+1, ($content[1].LastIndexOf('"') - $content[1].IndexOf('"'))-1 ).Trim().Replace('?','').Replace('%','').Replace('[','').Replace(']','').Replace('²','2').Replace('³','2').Replace(':','')
 
 # Ermittle die Position, wo am häufigsten der ':' als Trenner steht. Dort wird später getrennt
 foreach ($c in $content) {
@@ -41,9 +53,10 @@ foreach ($c in $content) {
 foreach ($c in $content) {
     if ($c[$position] -match ':') {
         $d=$c.Substring(0,$position)
-        $Name = $d.Substring(0,$d.IndexOf('(')).Trim().Replace('?','').Replace('%','').Replace('[','').Replace(']','').Replace('²','2').Replace('³','2').Replace(':','')
-        $Placeholder = $Name.Replace(' ','_')
-        $Feld = '@'+$d.Substring( $d.LastIndexOf('(')+1, ($d.LastIndexOf(')') - $d.LastIndexOf('('))-1 ).Trim().Replace(' ','_')
+        $Feld = (($d | Select-String "(?<=\()(.*?)(?=\))" -AllMatches).Matches.Value | Select-Object -Last 1)
+        $Name = $d.Substring(0,$d.IndexOf($Feld)-1).Trim().Replace('?','').Replace('%','').Replace('[','').Replace(']','').Replace('²','2').Replace('³','2').Replace(':','')
+        $Feld = "@$Feld"
+        $Placeholder = $Name.Replace(' ','_').Replace('(','').Replace(')','')
 
         # Referenzen auf Objek(e), Punkt(e) und Flächen aussortieren
         if ($c.Substring($position, $c.Length - $position) -like "* Objekt*" -or
@@ -56,7 +69,7 @@ foreach ($c in $content) {
             $Placeholder = '_'+$Placeholder
         }
     
-        $output+="				<FieldMapping description=`"{0}`" placeholder=`"{1}`" xPath=`"{3}/{2}`"/>" -f $Name,$Placeholder,$Feld,$RwoTypeNameExt
+        $output+="				<FieldMapping description=`"{0}`" placeholder=`"{1}`" xPath=`"{3}/{2}`"/>" -f $Name,$Placeholder,$Feld,$RwoTypeNameInt
         
     }
 }
